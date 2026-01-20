@@ -15,6 +15,7 @@ private final class ResultBox: @unchecked Sendable {
 }
 
 class ServiceProvider: NSObject {
+    private let maxTextLength = 500
 
     @objc func handleService(
         _ pboard: NSPasteboard,
@@ -26,6 +27,16 @@ class ServiceProvider: NSObject {
             return
         }
 
+        // Check for empty or whitespace-only text
+        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedText.isEmpty else {
+            error.pointee = "No text selected" as NSString
+            return
+        }
+
+        // Truncate if too long (for LLM processing)
+        let textToProcess = text.count > maxTextLength ? String(text.prefix(maxTextLength)) : text
+
         let insertionMode = SettingsManager.insertionMode
         let box = ResultBox(text)
 
@@ -36,11 +47,12 @@ class ServiceProvider: NSObject {
             Task {
                 do {
                     if #available(macOS 26.0, *) {
-                        let emojis = try await LocalLLMClient.shared.fetchEmojis(for: text)
+                        let emojis = try await LocalLLMClient.shared.fetchEmojis(for: textToProcess)
 
-                        // Record to history
+                        // Record to history (use truncated text for display)
+                        let displayText = textToProcess.count > 50 ? String(textToProcess.prefix(50)) + "..." : textToProcess
                         await MainActor.run {
-                            HistoryManager.shared.addItem(originalText: text, emojis: emojis)
+                            HistoryManager.shared.addItem(originalText: displayText, emojis: emojis)
                         }
 
                         switch insertionMode {
