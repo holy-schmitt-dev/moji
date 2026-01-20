@@ -12,6 +12,18 @@ VERSION=$(defaults read "$APP_PATH/Contents/Info" CFBundleShortVersionString 2>/
 OUTPUT_DIR="$(pwd)/dist"
 DMG_PATH="$OUTPUT_DIR/${DMG_NAME}-${VERSION}.dmg"
 TEMP_DMG_PATH="$OUTPUT_DIR/${DMG_NAME}-temp.dmg"
+MOUNT_DIR="/Volumes/$APP_NAME"
+BACKGROUND_DIR="$(pwd)/scripts/dmg-resources"
+BACKGROUND_FILE="$BACKGROUND_DIR/background.png"
+
+# DMG window settings
+WINDOW_WIDTH=600
+WINDOW_HEIGHT=400
+ICON_SIZE=128
+APP_X=420
+APP_Y=170
+APPS_X=180
+APPS_Y=170
 
 # Colors for output
 RED='\033[0;31m'
@@ -52,24 +64,105 @@ mkdir -p "$OUTPUT_DIR"
 rm -f "$TEMP_DMG_PATH"
 rm -f "$DMG_PATH"
 
-echo -e "${BLUE}→${NC} Creating DMG..."
+# Unmount if already mounted
+if [ -d "$MOUNT_DIR" ]; then
+    hdiutil detach "$MOUNT_DIR" -force 2>/dev/null || true
+fi
 
-# Create a temporary directory for DMG contents
-TEMP_DIR=$(mktemp -d)
-cp -R "$APP_PATH" "$TEMP_DIR/"
+echo -e "${BLUE}→${NC} Creating temporary DMG..."
 
-# Create symbolic link to Applications
-ln -s /Applications "$TEMP_DIR/Applications"
-
-# Create the DMG
+# Create a temporary DMG (read-write)
 hdiutil create -volname "$APP_NAME" \
-    -srcfolder "$TEMP_DIR" \
+    -srcfolder "$APP_PATH" \
     -ov \
-    -format UDZO \
-    "$DMG_PATH"
+    -format UDRW \
+    -size 200m \
+    "$TEMP_DMG_PATH"
 
-# Clean up
-rm -rf "$TEMP_DIR"
+echo -e "${BLUE}→${NC} Mounting DMG..."
+
+# Mount the temporary DMG
+hdiutil attach "$TEMP_DMG_PATH" -mountpoint "$MOUNT_DIR"
+
+# Add Applications symlink
+ln -sf /Applications "$MOUNT_DIR/Applications"
+
+echo -e "${BLUE}→${NC} Customizing DMG window..."
+
+# Check if background exists
+if [ -f "$BACKGROUND_FILE" ]; then
+    mkdir -p "$MOUNT_DIR/.background"
+    cp "$BACKGROUND_FILE" "$MOUNT_DIR/.background/background.png"
+    HAS_BACKGROUND=true
+else
+    HAS_BACKGROUND=false
+    echo -e "${BLUE}  (No background image found at $BACKGROUND_FILE)${NC}"
+fi
+
+# Use AppleScript to customize the DMG window
+if [ "$HAS_BACKGROUND" = true ]; then
+osascript <<EOF
+tell application "Finder"
+    tell disk "$APP_NAME"
+        open
+        set current view of container window to icon view
+        set toolbar visible of container window to false
+        set statusbar visible of container window to false
+        set bounds of container window to {100, 100, $((100 + WINDOW_WIDTH)), $((100 + WINDOW_HEIGHT))}
+        set viewOptions to the icon view options of container window
+        set arrangement of viewOptions to not arranged
+        set icon size of viewOptions to $ICON_SIZE
+        set background picture of viewOptions to file ".background:background.png"
+        set position of item "Moji.app" of container window to {$APP_X, $APP_Y}
+        set position of item "Applications" of container window to {$APPS_X, $APPS_Y}
+        close
+        open
+        update without registering applications
+        delay 2
+        close
+    end tell
+end tell
+EOF
+else
+osascript <<EOF
+tell application "Finder"
+    tell disk "$APP_NAME"
+        open
+        set current view of container window to icon view
+        set toolbar visible of container window to false
+        set statusbar visible of container window to false
+        set bounds of container window to {100, 100, $((100 + WINDOW_WIDTH)), $((100 + WINDOW_HEIGHT))}
+        set viewOptions to the icon view options of container window
+        set arrangement of viewOptions to not arranged
+        set icon size of viewOptions to $ICON_SIZE
+        set position of item "Moji.app" of container window to {$APP_X, $APP_Y}
+        set position of item "Applications" of container window to {$APPS_X, $APPS_Y}
+        close
+        open
+        update without registering applications
+        delay 2
+        close
+    end tell
+end tell
+EOF
+fi
+
+# Hide background folder
+if [ "$HAS_BACKGROUND" = true ]; then
+    SetFile -a V "$MOUNT_DIR/.background" 2>/dev/null || true
+fi
+
+# Sync and unmount
+sync
+hdiutil detach "$MOUNT_DIR"
+
+echo -e "${BLUE}→${NC} Compressing DMG..."
+
+# Convert to compressed read-only DMG
+hdiutil convert "$TEMP_DMG_PATH" -format UDZO -o "$DMG_PATH"
+
+# Clean up temp DMG
+rm -f "$TEMP_DMG_PATH"
 
 echo ""
 echo -e "${GREEN}======================================${NC}"
