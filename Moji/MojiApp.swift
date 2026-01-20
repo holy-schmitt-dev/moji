@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AppKit
+import ServiceManagement
 
 @main
 struct MojiApp: App {
@@ -30,6 +31,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         HotkeyManager.shared.register()
         requestAccessibilityPermission()
+        enableLaunchAtLogin()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -39,5 +41,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func requestAccessibilityPermission() {
         let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true]
         AXIsProcessTrustedWithOptions(options as CFDictionary)
+    }
+
+    private func enableLaunchAtLogin() {
+        do {
+            // Only enable if not already enabled
+            if SMAppService.mainApp.status != .enabled {
+                try SMAppService.mainApp.register()
+            }
+        } catch {
+            print("Failed to enable launch at login: \(error)")
+        }
     }
 }
