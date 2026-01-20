@@ -5,6 +5,98 @@
 
 import SwiftUI
 
+// MARK: - Custom Font Extension
+
+extension Font {
+    static func rounded(_ style: Font.TextStyle, weight: Font.Weight = .regular) -> Font {
+        .system(style, design: .rounded, weight: weight)
+    }
+
+    static func rounded(size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        .system(size: size, weight: weight, design: .rounded)
+    }
+}
+
+// MARK: - Theme Colors
+
+struct MojiTheme {
+    static let accent = Color.purple
+    static let accentGradient = LinearGradient(
+        colors: [Color(red: 0.5, green: 0.3, blue: 0.9), Color(red: 0.6, green: 0.4, blue: 1.0)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    static let subtleGradient = LinearGradient(
+        colors: [Color.purple.opacity(0.12), Color(red: 0.5, green: 0.4, blue: 0.9).opacity(0.08)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    static let cardBackground = Color.primary.opacity(0.05)
+}
+
+// MARK: - Pill Toggle Button
+
+struct PillToggle<T: Hashable>: View {
+    let options: [(value: T, label: String)]
+    @Binding var selection: T
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(options.indices, id: \.self) { index in
+                let option = options[index]
+                let isSelected = selection == option.value
+
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        selection = option.value
+                    }
+                }) {
+                    Text(option.label)
+                        .font(.rounded(size: 13, weight: isSelected ? .semibold : .medium))
+                        .foregroundColor(isSelected ? .white : .primary.opacity(0.7))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            Group {
+                                if isSelected {
+                                    Capsule()
+                                        .fill(MojiTheme.accentGradient)
+                                        .shadow(color: .purple.opacity(0.3), radius: 4, y: 2)
+                                } else {
+                                    Capsule()
+                                        .fill(Color.primary.opacity(0.08))
+                                }
+                            }
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+// MARK: - Section Header
+
+struct SectionHeader: View {
+    let title: String
+    let icon: String
+    var color: Color = .primary
+
+    var body: some View {
+        Label {
+            Text(title)
+                .font(.rounded(.headline, weight: .bold))
+        } icon: {
+            Image(systemName: icon)
+                .foregroundStyle(MojiTheme.accentGradient)
+        }
+        .foregroundColor(color)
+    }
+}
+
+// MARK: - Main View
+
 struct MenuBarView: View {
     @AppStorage("emojiStyle") private var emojiStyle = EmojiStyle.literal.rawValue
     @AppStorage("insertionMode") private var insertionMode = InsertionMode.append.rawValue
@@ -16,26 +108,15 @@ struct MenuBarView: View {
             // Header
             headerView
 
-            Divider()
-
             ScrollView {
-                VStack(spacing: 16) {
-                    // Quick Favorites
-                    if !history.favorites.isEmpty {
-                        favoritesSection
-                        Divider()
-                    }
-
+                VStack(spacing: 20) {
                     // Recent History
                     if !history.recents.isEmpty {
                         historySection
-                        Divider()
                     }
 
                     // Settings
                     settingsSection
-
-                    Divider()
 
                     // Help
                     helpSection
@@ -43,136 +124,92 @@ struct MenuBarView: View {
                 .padding()
             }
 
-            Divider()
-
             // Footer
             footerView
         }
         .frame(width: 340, height: 580)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     // MARK: - Header
 
     private var headerView: some View {
         HStack {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Text("✨")
-                    .font(.title)
+                    .font(.system(size: 28))
                 Text("Moji")
-                    .font(.title2)
-                    .fontWeight(.semibold)
+                    .font(.rounded(size: 24, weight: .bold))
+                    .foregroundStyle(MojiTheme.accentGradient)
             }
 
             Spacer()
 
             Text("⌥M")
-                .font(.subheadline)
-                .fontWeight(.medium)
+                .font(.rounded(size: 12, weight: .semibold))
+                .foregroundColor(.white)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(.secondary.opacity(0.2))
-                .cornerRadius(8)
+                .background(
+                    Capsule()
+                        .fill(MojiTheme.accentGradient)
+                )
         }
         .padding()
-    }
-
-    // MARK: - Favorites Section
-
-    private var favoritesSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Label("Favorites", systemImage: "star.fill")
-                    .font(.headline)
-                    .foregroundColor(.orange)
-                Spacer()
-            }
-
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 56))], spacing: 10) {
-                ForEach(history.favorites.prefix(8)) { item in
-                    emojiButton(item: item)
-                }
-            }
-        }
+        .background(MojiTheme.subtleGradient)
     }
 
     // MARK: - History Section
 
     private var historySection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("Recent", systemImage: "clock")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
+                SectionHeader(title: "Recent", icon: "clock.fill")
                 Spacer()
-                Button("Clear") {
-                    withAnimation {
+                Button(action: {
+                    withAnimation(.spring(response: 0.3)) {
                         history.clearHistory()
                     }
+                }) {
+                    Text("Clear")
+                        .font(.rounded(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
                 }
-                .font(.subheadline)
-                .foregroundColor(.secondary)
                 .buttonStyle(.plain)
             }
 
-            ForEach(history.recents.prefix(5)) { item in
-                historyRow(item: item)
+            VStack(spacing: 4) {
+                ForEach(history.recents.prefix(5)) { item in
+                    historyRow(item: item)
+                }
             }
         }
-    }
-
-    private func emojiButton(item: HistoryItem) -> some View {
-        Button(action: {
-            copyToClipboard(item.emojis)
-        }) {
-            Text(item.emojis)
-                .font(.title)
-                .frame(width: 52, height: 52)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(.background)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(.secondary.opacity(0.2), lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
-        .help(item.originalText)
-        .contextMenu {
-            Button(action: { history.toggleFavorite(item) }) {
-                Label(item.isFavorite ? "Unfavorite" : "Favorite", systemImage: item.isFavorite ? "star.slash" : "star")
-            }
-            Button(action: { copyToClipboard(item.emojis) }) {
-                Label("Copy", systemImage: "doc.on.doc")
-            }
-            Divider()
-            Button(role: .destructive, action: { history.removeItem(item) }) {
-                Label("Remove", systemImage: "trash")
-            }
-        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(MojiTheme.cardBackground)
+        )
     }
 
     private func historyRow(item: HistoryItem) -> some View {
-        HStack {
+        HStack(spacing: 12) {
             Text(item.emojis)
-                .font(.title2)
+                .font(.system(size: 22))
 
             Text(item.originalText)
-                .font(.subheadline)
+                .font(.rounded(size: 13, weight: .medium))
                 .foregroundColor(.secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
 
             Spacer()
-
-            Button(action: { history.toggleFavorite(item) }) {
-                Image(systemName: item.isFavorite ? "star.fill" : "star")
-                    .font(.subheadline)
-                    .foregroundColor(item.isFavorite ? .orange : .secondary)
-            }
-            .buttonStyle(.plain)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.03))
+        )
         .contentShape(Rectangle())
         .onTapGesture {
             copyToClipboard(item.emojis)
@@ -183,71 +220,78 @@ struct MenuBarView: View {
 
     private var settingsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label("Settings", systemImage: "gearshape")
-                .font(.headline)
+            SectionHeader(title: "Settings", icon: "slider.horizontal.3")
 
             // Max Emojis
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Max Emojis", systemImage: "number")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                Picker("", selection: $maxEmojis) {
-                    ForEach(MaxEmojis.allCases, id: \.self) { count in
-                        Text(count.display).tag(count.rawValue)
-                    }
+            VStack(alignment: .leading, spacing: 10) {
+                Label {
+                    Text("Max Emojis")
+                        .font(.rounded(size: 13, weight: .medium))
+                } icon: {
+                    Text("#")
+                        .font(.rounded(size: 13, weight: .bold))
+                        .foregroundStyle(MojiTheme.accentGradient)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+                .foregroundColor(.secondary)
+
+                PillToggle(
+                    options: MaxEmojis.allCases.map { ($0.rawValue, $0.display) },
+                    selection: $maxEmojis
+                )
             }
 
             // Emoji Style
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Style", systemImage: "paintbrush")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                Picker("", selection: $emojiStyle) {
-                    ForEach(EmojiStyle.allCases, id: \.self) { style in
-                        Text(style.rawValue).tag(style.rawValue)
-                    }
+            VStack(alignment: .leading, spacing: 10) {
+                Label {
+                    Text("Style")
+                        .font(.rounded(size: 13, weight: .medium))
+                } icon: {
+                    Image(systemName: "paintbrush.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(MojiTheme.accentGradient)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+                .foregroundColor(.secondary)
+
+                PillToggle(
+                    options: EmojiStyle.allCases.map { ($0.rawValue, $0.rawValue) },
+                    selection: $emojiStyle
+                )
             }
 
             // Insertion Mode
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Insert", systemImage: "text.insert")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                Picker("", selection: $insertionMode) {
-                    ForEach(InsertionMode.allCases, id: \.self) { mode in
-                        Text(mode.rawValue).tag(mode.rawValue)
-                    }
+            VStack(alignment: .leading, spacing: 10) {
+                Label {
+                    Text("Insert Mode")
+                        .font(.rounded(size: 13, weight: .medium))
+                } icon: {
+                    Image(systemName: "text.insert")
+                        .font(.system(size: 12))
+                        .foregroundStyle(MojiTheme.accentGradient)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+                .foregroundColor(.secondary)
+
+                PillToggle(
+                    options: InsertionMode.allCases.map { ($0.rawValue, $0.rawValue) },
+                    selection: $insertionMode
+                )
             }
         }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(MojiTheme.cardBackground)
+        )
     }
 
     // MARK: - Help Section
 
     private var helpSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label("How to Use", systemImage: "questionmark.circle")
-                .font(.headline)
+            SectionHeader(title: "How to Use", icon: "sparkles")
 
             // Quick Start
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Quick Start", systemImage: "sparkles")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.purple)
-
-                VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 8) {
                     helpStep(number: "1", text: "Select any text in any app")
                     helpStep(number: "2", text: "Press ⌥M (Option + M)")
                     helpStep(number: "3", text: "Emojis are added automatically!")
@@ -255,91 +299,117 @@ struct MenuBarView: View {
             }
 
             Divider()
+                .background(Color.purple.opacity(0.3))
 
             // Alternative Method
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Alternative: Services Menu", systemImage: "contextualmenu.and.cursorarrow")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.blue)
+            VStack(alignment: .leading, spacing: 6) {
+                Label {
+                    Text("Alternative")
+                        .font(.rounded(size: 12, weight: .semibold))
+                } icon: {
+                    Image(systemName: "cursorarrow.click.2")
+                        .font(.system(size: 11))
+                }
+                .foregroundStyle(MojiTheme.accentGradient)
 
-                Text("Select text → Right-click → Services → Moji This")
-                    .font(.subheadline)
+                Text("Right-click → Services → Moji This")
+                    .font(.rounded(size: 12, weight: .medium))
                     .foregroundColor(.secondary)
             }
 
             Divider()
+                .background(Color.purple.opacity(0.3))
 
             // Permissions
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Permissions", systemImage: "lock.shield")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.orange)
+            VStack(alignment: .leading, spacing: 10) {
+                Label {
+                    Text("Permissions")
+                        .font(.rounded(size: 12, weight: .semibold))
+                } icon: {
+                    Image(systemName: "lock.shield.fill")
+                        .font(.system(size: 11))
+                }
+                .foregroundStyle(MojiTheme.accentGradient)
 
-                Text("For ⌥M to work, Moji needs Accessibility access:")
-                    .font(.subheadline)
+                Text("Enable Accessibility for ⌥M hotkey:")
+                    .font(.rounded(size: 12, weight: .medium))
                     .foregroundColor(.secondary)
-
-                Text("System Settings → Privacy & Security → Accessibility → Enable Moji")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(.secondary.opacity(0.1))
-                    )
 
                 Button(action: openAccessibilitySettings) {
-                    Label("Open Settings", systemImage: "arrow.up.forward.app")
-                        .font(.subheadline)
+                    HStack(spacing: 6) {
+                        Image(systemName: "gear")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("Open System Settings")
+                            .font(.rounded(size: 12, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .fill(MojiTheme.accentGradient)
+                    )
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+                .buttonStyle(.plain)
             }
 
             Divider()
+                .background(Color.purple.opacity(0.3))
 
             // Styles Explained
             VStack(alignment: .leading, spacing: 8) {
-                Label("Emoji Styles", systemImage: "paintbrush")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.green)
+                Label {
+                    Text("Emoji Styles")
+                        .font(.rounded(size: 12, weight: .semibold))
+                } icon: {
+                    Image(systemName: "theatermasks.fill")
+                        .font(.system(size: 11))
+                }
+                .foregroundStyle(MojiTheme.accentGradient)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    styleExplanation(style: "Literal", desc: "Direct match (dog → 🐕)")
-                    styleExplanation(style: "Abstract", desc: "Vibes & mood (love → 💫)")
-                    styleExplanation(style: "Chaotic", desc: "Weird & fun (meeting → 🦷)")
+                VStack(alignment: .leading, spacing: 4) {
+                    styleExplanation(style: "Literal", emoji: "🎯", desc: "dog → 🐕")
+                    styleExplanation(style: "Abstract", emoji: "💫", desc: "love → 💫")
+                    styleExplanation(style: "Chaotic", emoji: "🤪", desc: "meeting → 🦷")
                 }
             }
         }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(MojiTheme.cardBackground)
+        )
     }
 
     private func helpStep(number: String, text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .center, spacing: 12) {
             Text(number)
-                .font(.caption)
-                .fontWeight(.bold)
+                .font(.rounded(size: 12, weight: .bold))
                 .foregroundColor(.white)
-                .frame(width: 20, height: 20)
-                .background(Circle().fill(.purple))
+                .frame(width: 22, height: 22)
+                .background(
+                    Circle()
+                        .fill(MojiTheme.accentGradient)
+                )
 
             Text(text)
-                .font(.subheadline)
+                .font(.rounded(size: 13, weight: .medium))
                 .foregroundColor(.primary)
         }
     }
 
-    private func styleExplanation(style: String, desc: String) -> some View {
+    private func styleExplanation(style: String, emoji: String, desc: String) -> some View {
         HStack(spacing: 8) {
+            Text(emoji)
+                .font(.system(size: 14))
+
             Text(style)
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .frame(width: 65, alignment: .leading)
+                .font(.rounded(size: 12, weight: .semibold))
+                .foregroundColor(.primary)
+                .frame(width: 55, alignment: .leading)
 
             Text(desc)
-                .font(.subheadline)
+                .font(.rounded(size: 12, weight: .medium))
                 .foregroundColor(.secondary)
         }
     }
@@ -355,20 +425,25 @@ struct MenuBarView: View {
     private var footerView: some View {
         HStack {
             Button(action: { NSApplication.shared.terminate(nil) }) {
-                Label("Quit", systemImage: "power")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                HStack(spacing: 6) {
+                    Image(systemName: "power")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("Quit")
+                        .font(.rounded(size: 12, weight: .medium))
+                }
+                .foregroundColor(.secondary)
             }
             .buttonStyle(.plain)
 
             Spacer()
 
             Text("v1.0")
-                .font(.caption)
+                .font(.rounded(size: 11, weight: .medium))
                 .foregroundColor(.secondary.opacity(0.5))
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 16)
         .padding(.vertical, 12)
+        .background(MojiTheme.subtleGradient.opacity(0.5))
     }
 
     // MARK: - Helpers

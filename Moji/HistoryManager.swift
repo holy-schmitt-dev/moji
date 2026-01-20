@@ -11,14 +11,12 @@ struct HistoryItem: Codable, Identifiable, Equatable {
     let originalText: String
     let emojis: String
     let timestamp: Date
-    var isFavorite: Bool
 
-    init(originalText: String, emojis: String, isFavorite: Bool = false) {
+    init(originalText: String, emojis: String) {
         self.id = UUID()
         self.originalText = originalText
         self.emojis = emojis
         self.timestamp = Date()
-        self.isFavorite = isFavorite
     }
 }
 
@@ -44,25 +42,12 @@ class HistoryManager: ObservableObject {
             // Add to front
             self.items.insert(item, at: 0)
 
-            // Trim to max (but keep favorites)
-            let favorites = self.items.filter { $0.isFavorite }
-            var nonFavorites = self.items.filter { !$0.isFavorite }
-
-            if nonFavorites.count > self.maxItems {
-                nonFavorites = Array(nonFavorites.prefix(self.maxItems))
+            // Trim to max
+            if self.items.count > self.maxItems {
+                self.items = Array(self.items.prefix(self.maxItems))
             }
 
-            self.items = favorites + nonFavorites
-            self.items.sort { $0.timestamp > $1.timestamp }
-
             self.saveHistory()
-        }
-    }
-
-    func toggleFavorite(_ item: HistoryItem) {
-        if let index = items.firstIndex(where: { $0.id == item.id }) {
-            items[index].isFavorite.toggle()
-            saveHistory()
         }
     }
 
@@ -72,16 +57,12 @@ class HistoryManager: ObservableObject {
     }
 
     func clearHistory() {
-        items.removeAll { !$0.isFavorite }
+        items.removeAll()
         saveHistory()
     }
 
-    var favorites: [HistoryItem] {
-        items.filter { $0.isFavorite }
-    }
-
     var recents: [HistoryItem] {
-        items.filter { !$0.isFavorite }.prefix(10).map { $0 }
+        Array(items.prefix(10))
     }
 
     private func saveHistory() {
