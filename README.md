@@ -8,6 +8,12 @@ Select any text, press `⌥M`, and watch as contextually relevant emojis appear 
   <img src=".github/screenshot.png" width="50%" alt="Moji Screenshot">
 </p>
 
+<p align="center">
+  <a href="https://github.com/holy-schmitt-dev/moji/releases/latest/download/Moji-1.0.dmg">
+    <img src="https://img.shields.io/badge/Download-Moji%20for%20Mac-7C3AED?style=for-the-badge&logo=apple&logoColor=white" alt="Download Moji">
+  </a>
+</p>
+
 ## Features
 
 - **On-Device AI** — Uses Apple's Foundation Models for fast, private emoji suggestions
