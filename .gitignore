@@ -15,3 +15,7 @@ xcuserdata/
 # Distribution
 dist/
 *.dmg
+*.app
+
+# Exported builds
+Moji/Moji v*/
