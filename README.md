@@ -4,7 +4,9 @@ A macOS menu bar app that uses Apple's on-device AI to add perfect emojis to you
 
 Select any text, press `⌥M`, and watch as contextually relevant emojis appear instantly—all processed locally on your Mac.
 
-![Moji Screenshot](.github/screenshot.png)
+<p align="center">
+  <img src=".github/screenshot.png" width="50%" alt="Moji Screenshot">
+</p>
 
 ## Features
 
