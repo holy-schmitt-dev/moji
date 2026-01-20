@@ -1,86 +1,129 @@
-# Implementation Plan: Moji (macOS Menu Bar App)
+# Moji - macOS Menu Bar Emoji App
 
-## 1. Project Overview
+## Overview
 **App Name:** Moji
-**Type:** macOS Menu Bar App (Agent) + System Service
-**Goal:** A background utility that analyzes highlighted text via a fast LLM and inserts context-aware emojis.
-**Core Stack:** Swift, SwiftUI (Settings UI), AppKit (Menu Bar), NSServices (Text Processing).
-**LLM Strategy:** Low-latency API calls (OpenAI `gpt-4o-mini` or Groq) to ensure the UI feels snappy.
+**Type:** macOS Menu Bar App + System Service
+**Purpose:** Analyzes selected text using on-device AI and inserts context-aware emojis.
+**Requirements:** macOS 26.0+ (Tahoe), Apple Silicon (M1/M2/M3/M4)
 
-## 2. Architecture & Data Flow
-1.  **User Action:** User highlights text in any app -> Right Click -> Services -> "Moji This".
-2.  **System Event:** macOS sends the selected text to `Moji.app` via `NSPasteboard`.
-3.  **Processing:**
-    * App reads text.
-    * App checks User Settings (API Key, Position Preference).
-    * App sends text to LLM: "Pick 1-3 emojis that match this vibe."
-4.  **Output:** App modifies the text on `NSPasteboard` based on settings (Append, Prepend, or Replace) and signals macOS to paste.
+## Architecture
 
-## 3. Configuration & Settings (UserDefaults)
-We need a lightweight `SettingsManager` to persist:
-* `apiKey`: String (Secure Storage/Keychain preferred, simple String for MVP).
-* `emojiStyle`: Enum [Literal, Abstract, Chaotic].
-* `insertionMode`: Enum [Append (End), Prepend (Start), Replace (Swap)].
+### Core Stack
+- **Swift** - Primary language
+- **SwiftUI** - Menu bar UI with custom styling
+- **AppKit** - Menu bar integration, clipboard handling
+- **Foundation Models** - Apple's on-device AI for emoji generation
+- **ServiceManagement** - Launch at login
+- **Carbon** - Global hotkey registration
 
-## 4. Phase-by-Phase Implementation
+### Data Flow
+1. **User Action:** Select text → Press `⌥M` (or right-click → Services → "Moji This")
+2. **Text Capture:** App copies selected text via simulated Cmd+C
+3. **AI Processing:** Text sent to Apple's on-device Foundation Models
+4. **Output:** Emojis inserted based on user's insertion mode preference
 
-### Phase 1: Project Skeleton & Service Registration
-*Goal: Get the app running in the menu bar and registered as a Service.*
+## Features
 
-* **Action Items:**
-    1.  **Xcode Setup:** Create new macOS App (App Lifecycle).
-    2.  **Info.plist Configuration:**
-        * Add `LSUIElement` = `YES` (Hides app from Dock).
-        * Add `NSServices` entry:
-            * **Menu Item:** "Moji This"
-            * **Message:** `handleService`
-            * **Port Name:** `MojiApp`
-            * **Send Type:** `NSStringPboardType`
-            * **Return Type:** `NSStringPboardType`
-    3.  **AppDelegate:** Create `ServiceProvider` class to listen for the system call.
+### Input Methods
+- **Global Hotkey:** `⌥M` (Option + M) - works in any app
+- **Services Menu:** Right-click → Services → "Moji This"
 
-### Phase 2: The Service Logic (The "Plumbing")
-*Goal: Successfully receive text from another app and print it to the console.*
+### Settings
+- **Max Emojis:** 1, 2, 3, or Auto (AI decides based on context)
+- **Emoji Style:**
+  - Literal - Direct visual matches (dog → 🐕)
+  - Abstract - Vibes and mood (love → 💫)
+  - Chaotic - Weird and fun (meeting → 🦷)
+- **Insertion Mode:** Append, Prepend, or Replace
 
-* **File:** `ServiceProvider.swift`
-* **Logic:**
-    * Implement `@objc func handleService(_ pboard: NSPasteboard, userData: String, error: AutoreleasingUnsafeMutablePointer<NSString?>)`
-    * Extract string from `pboard`.
-    * *Temporary:* Append a hardcoded "✅" and write back to `pboard` to verify the connection works.
+### Other Features
+- **History:** Recent emoji conversions with one-click copy
+- **Auto-start:** Launches on login via SMAppService
+- **Privacy:** All AI processing happens on-device, no data sent externally
 
-### Phase 3: The Brains (LLM Client)
-*Goal: Send text to an API and get an emoji back.*
+## File Structure
 
-* **File:** `LLMClient.swift`
-* **Logic:**
-    * Simple `URLSession` request.
-    * **System Prompt:** "You are an API that returns ONLY emojis. Do not output text. Analyze the following phrase and return 1-3 emojis that match the tone. Input: '{text}'"
-    * **Model:** Hardcode `gpt-4o-mini` (or user defined) for sub-500ms response times.
+```
+Moji/
+├── MojiApp.swift          # App entry, MenuBarExtra, AppDelegate
+├── MenuBarView.swift      # Main UI with custom styling
+├── SettingsManager.swift  # UserDefaults persistence, enums
+├── LocalLLMClient.swift   # Apple Foundation Models integration
+├── TextProcessor.swift    # Hotkey text processing, clipboard handling
+├── ServiceProvider.swift  # NSServices handler for right-click menu
+├── HotkeyManager.swift    # Global ⌥M hotkey via Carbon API
+├── HistoryManager.swift   # Recent conversions storage
+└── Info.plist             # LSUIElement, NSServices config
+```
 
-### Phase 4: The Menu Bar UI
-*Goal: Allow user to input API Key and change behavior.*
+## Key Implementation Details
 
-* **File:** `MenuBarView.swift`
-* **UI Components:**
-    * `TextField`: "OpenAI API Key"
-    * `Picker`: "Insertion Mode" (Append/Prepend/Replace)
-    * `Button`: "Quit Moji"
-* **Wiring:** Connect `MenuBarView` to `SettingsManager`.
+### Apple Foundation Models (LocalLLMClient.swift)
+```swift
+@available(macOS 26.0, *)
+class LocalLLMClient {
+    private let model = SystemLanguageModel.default
 
-### Phase 5: Integration & Polish
-*Goal: Connect the Service Logic to the LLM Client.*
+    func fetchEmojis(for text: String) async throws -> String {
+        let session = LanguageModelSession()
+        let response = try await session.respond(to: prompt)
+        return truncateEmojis(response.content, max: maxEmojis)
+    }
+}
+```
 
-* **Refining `ServiceProvider.swift`:**
-    * Replace hardcoded "✅" with `await LLMClient.fetchEmojis(for: text)`.
-    * Apply `SettingsManager.insertionMode` logic.
-    * Write result back to Pasteboard.
+### Global Hotkey (HotkeyManager.swift)
+- Uses Carbon `RegisterEventHotKey` API
+- Registers `⌥M` (Option + M) on app launch
+- Triggers `TextProcessor.processSelectedText()`
 
-## 5. Technical Constraints & Notes
-* **Sandbox:** `NSServices` can be finicky with App Sandbox enabled during development. If the service doesn't appear, try disabling "App Sandbox" in Xcode Signing & Capabilities for the debug build.
-* **Latency:** The LLM call must be non-blocking, but `NSServices` expects a synchronous return or a swift callback. We may need to use a `DispatchSemaphore` or handle the paste manually if the API takes too long.
-* **Privacy:** Since we are sending clipboard data to an API, add a small disclaimer in the Settings UI.
+### Text Processing Flow (TextProcessor.swift)
+1. Save current clipboard contents
+2. Simulate Cmd+C to copy selected text
+3. Send text to LLM (truncated to 500 chars max)
+4. Format result based on insertion mode
+5. Simulate Cmd+V to paste
+6. Restore original clipboard
 
-## 6. Prompting Guide for Claude Code
-* **Step 1:** "Scaffold the `ServiceProvider.swift` class compatible with `NSServices`."
-* **Step 2:** "Create a `NetworkManager` for OpenAI chat completions, optimized for minimal token usage."
-* **Step 3:** "Build a SwiftUI MenuBarExtra view that saves an API key to UserDefaults."
+### Edge Cases Handled
+- No text selected → System beep
+- Empty/whitespace text → System beep
+- Very long text → Truncated to 500 chars for LLM
+- Rapid invocations → Blocked while processing
+- LLM errors → Falls back to ✨ emoji
+
+### UI Styling (MenuBarView.swift)
+- SF Rounded font throughout
+- Custom PillToggle component (replaces segmented pickers)
+- Purple gradient theme (#7C3AED to violet)
+- Card-based sections with subtle backgrounds
+
+## Permissions Required
+
+### Accessibility
+Required for global hotkey to simulate copy/paste keystrokes.
+- System Settings → Privacy & Security → Accessibility → Enable Moji
+
+### Login Items
+Auto-enabled on first launch via SMAppService.
+- Can be disabled in System Settings → General → Login Items
+
+## Distribution
+
+### Building
+1. Xcode: Product → Archive
+2. Organizer: Distribute App → Copy App
+3. Run: `./scripts/create-dmg.sh /path/to/Moji.app`
+
+### DMG Features
+- Custom dark gradient background
+- "Drag to Install" text with arrow
+- Applications folder shortcut
+
+### Gatekeeper
+App is not notarized (requires $99/year Apple Developer account).
+Users must: Right-click → Open → Open to bypass warning.
+
+## Repository
+- **GitHub:** https://github.com/holy-schmitt-dev/moji
+- **License:** MIT
