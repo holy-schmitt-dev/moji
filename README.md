@@ -23,8 +23,10 @@ Select any text, press `⌥M`, and watch as contextually relevant emojis appear 
   - **Literal** — Direct visual matches (dog → 🐕)
   - **Abstract** — Vibes and mood (love → 💫)
   - **Chaotic** — Weird and fun (meeting → 🦷)
-- **Configurable** — Choose 1-3 emojis, append/prepend/replace modes
+- **Smart Emoji Count** — Choose 1, 2, 3, or let AI decide with "Auto" mode
+- **Configurable** — Append, prepend, or replace your text with emojis
 - **History** — Quick access to recent emoji conversions
+- **Auto-Start** — Launches automatically on login
 - **Privacy First** — Everything runs locally, no data leaves your Mac
 
 ## Requirements
@@ -61,9 +63,9 @@ brew install --cask moji
 
 ### Settings
 
-Click the ✨ menu bar icon to access settings:
+Click the menu bar icon to access settings:
 
-- **Max Emojis** — Limit output to 1, 2, or 3 emojis
+- **Max Emojis** — Choose 1, 2, 3, or Auto (AI picks the right amount)
 - **Style** — Choose Literal, Abstract, or Chaotic
 - **Insert Mode** — Append, Prepend, or Replace your text
 
