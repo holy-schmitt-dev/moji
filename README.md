@@ -40,8 +40,8 @@ Select any text, press `⌥M`, and watch as contextually relevant emojis appear 
 
 1. Download the latest `.dmg` from [Releases](https://github.com/holy-schmitt-dev/moji/releases)
 2. Open the `.dmg` and drag Moji to your Applications folder
-3. **First launch:** Right-click Moji → click **Open** → click **Open** again
-   > macOS shows a warning for apps downloaded outside the App Store. This is normal for open-source apps.
+3. **First launch:** macOS will block the app. Go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway**
+   > This is normal for open-source apps not distributed through the App Store.
 4. Grant Accessibility permissions when prompted (required for the `⌥M` hotkey)
 
 ### Homebrew (coming soon)
