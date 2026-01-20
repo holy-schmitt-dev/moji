@@ -30,8 +30,10 @@ class LocalLLMClient {
             throw LLMError.apiError("Apple AI is not available on this device")
         }
 
-        let maxEmojis = SettingsManager.maxEmojis.rawValue
-        let prompt = buildPrompt(for: text, style: SettingsManager.emojiStyle, maxEmojis: maxEmojis)
+        let maxEmojisSetting = SettingsManager.maxEmojis
+        let isAuto = maxEmojisSetting.isAuto
+        let maxEmojis = isAuto ? 5 : maxEmojisSetting.rawValue
+        let prompt = buildPrompt(for: text, style: SettingsManager.emojiStyle, maxEmojis: maxEmojis, isAuto: isAuto)
         let session = LanguageModelSession()
         let response = try await session.respond(to: prompt)
 
@@ -52,8 +54,16 @@ class LocalLLMClient {
         return String(emojis)
     }
 
-    private func buildPrompt(for text: String, style: EmojiStyle, maxEmojis: Int) -> String {
-        let emojiCount = maxEmojis == 1 ? "EXACTLY 1 emoji only" : "NO MORE than \(maxEmojis) emojis"
+    private func buildPrompt(for text: String, style: EmojiStyle, maxEmojis: Int, isAuto: Bool) -> String {
+        let emojiCount: String
+        if isAuto {
+            emojiCount = "the right number of emojis (1-5) based on text length and context. Short text = 1-2 emojis, longer text = more emojis"
+        } else if maxEmojis == 1 {
+            emojiCount = "EXACTLY 1 emoji only"
+        } else {
+            emojiCount = "NO MORE than \(maxEmojis) emojis"
+        }
+
         return """
         You are an emoji genius. Pick the perfect emoji(s) for this text.
 

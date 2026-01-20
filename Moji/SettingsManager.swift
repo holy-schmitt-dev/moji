@@ -29,13 +29,19 @@ enum MaxEmojis: Int, CaseIterable {
     case one = 1
     case two = 2
     case three = 3
+    case auto = 0
 
     var display: String {
         switch self {
         case .one: return "1"
         case .two: return "2"
         case .three: return "3"
+        case .auto: return "Auto"
         }
+    }
+
+    var isAuto: Bool {
+        self == .auto
     }
 }
 
