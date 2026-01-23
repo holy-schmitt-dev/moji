@@ -16,9 +16,13 @@ MOUNT_DIR="/Volumes/$APP_NAME"
 BACKGROUND_DIR="$(pwd)/scripts/dmg-resources"
 BACKGROUND_FILE="$BACKGROUND_DIR/background.png"
 
-# Signing & Notarization
-TEAM_ID="RVCV97M649"
-SIGNING_IDENTITY="Developer ID Application: Michael Schmitt ($TEAM_ID)"
+# Signing & Notarization (set via environment variables)
+TEAM_ID="${MOJI_TEAM_ID:-}"
+DEVELOPER_NAME="${MOJI_DEVELOPER_NAME:-}"
+SIGNING_IDENTITY=""
+if [ -n "$TEAM_ID" ] && [ -n "$DEVELOPER_NAME" ]; then
+    SIGNING_IDENTITY="Developer ID Application: $DEVELOPER_NAME ($TEAM_ID)"
+fi
 
 # DMG window settings
 WINDOW_WIDTH=540
@@ -69,9 +73,14 @@ fi
 
 # Check for signing certificate
 SHOULD_SIGN=false
-if security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
+if [ -z "$SIGNING_IDENTITY" ]; then
+    # Try to auto-detect signing identity
+    SIGNING_IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+fi
+
+if [ -n "$SIGNING_IDENTITY" ] && security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
     SHOULD_SIGN=true
-    echo -e "${GREEN}✓${NC} Found Developer ID certificate"
+    echo -e "${GREEN}✓${NC} Using signing identity: $SIGNING_IDENTITY"
 else
     echo -e "${YELLOW}!${NC} No Developer ID certificate found - skipping signing"
 fi
