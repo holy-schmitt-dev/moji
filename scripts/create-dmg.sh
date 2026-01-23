@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Create DMG for Moji
+# Create signed and notarized DMG for Moji
 # Usage: ./scripts/create-dmg.sh /path/to/Moji.app
 
 set -e
@@ -16,6 +16,11 @@ MOUNT_DIR="/Volumes/$APP_NAME"
 BACKGROUND_DIR="$(pwd)/scripts/dmg-resources"
 BACKGROUND_FILE="$BACKGROUND_DIR/background.png"
 
+# Signing & Notarization
+TEAM_ID="RVCV97M649"
+APPLE_ID="${APPLE_ID:-}"  # Set via environment or prompt
+SIGNING_IDENTITY="Developer ID Application: Michael Schmitt ($TEAM_ID)"
+
 # DMG window settings
 WINDOW_WIDTH=600
 WINDOW_HEIGHT=400
@@ -29,6 +34,7 @@ APPS_Y=170
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}======================================${NC}"
@@ -43,7 +49,7 @@ if [ -z "$APP_PATH" ]; then
     echo ""
     echo "To get Moji.app:"
     echo "  1. In Xcode: Product → Archive"
-    echo "  2. In Organizer: Distribute App → Copy App"
+    echo "  2. In Organizer: Distribute App → Developer ID → Export"
     echo "  3. Save the .app file"
     exit 1
 fi
@@ -67,6 +73,22 @@ rm -f "$DMG_PATH"
 # Unmount if already mounted
 if [ -d "$MOUNT_DIR" ]; then
     hdiutil detach "$MOUNT_DIR" -force 2>/dev/null || true
+fi
+
+# Check if we should sign
+SHOULD_SIGN=false
+if security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
+    SHOULD_SIGN=true
+    echo -e "${GREEN}✓${NC} Found Developer ID certificate"
+else
+    echo -e "${YELLOW}!${NC} No Developer ID certificate found - skipping signing"
+fi
+
+# Sign the app if certificate exists
+if [ "$SHOULD_SIGN" = true ]; then
+    echo -e "${BLUE}→${NC} Signing app..."
+    codesign --force --deep --options runtime --sign "$SIGNING_IDENTITY" "$APP_PATH"
+    echo -e "${GREEN}✓${NC} App signed"
 fi
 
 echo -e "${BLUE}→${NC} Creating temporary DMG..."
@@ -164,6 +186,13 @@ hdiutil convert "$TEMP_DMG_PATH" -format UDZO -o "$DMG_PATH"
 # Clean up temp DMG
 rm -f "$TEMP_DMG_PATH"
 
+# Sign the DMG if certificate exists
+if [ "$SHOULD_SIGN" = true ]; then
+    echo -e "${BLUE}→${NC} Signing DMG..."
+    codesign --force --sign "$SIGNING_IDENTITY" "$DMG_PATH"
+    echo -e "${GREEN}✓${NC} DMG signed"
+fi
+
 echo ""
 echo -e "${GREEN}======================================${NC}"
 echo -e "${GREEN}  DMG created successfully!${NC}"
@@ -171,9 +200,25 @@ echo -e "${GREEN}======================================${NC}"
 echo ""
 echo -e "Output: ${BLUE}$DMG_PATH${NC}"
 echo ""
-echo "Next steps:"
-echo "  1. Go to https://github.com/holy-schmitt-dev/moji/releases/new"
-echo "  2. Create tag: v$VERSION"
-echo "  3. Upload: $DMG_PATH"
-echo "  4. Publish release"
+
+# Notarization
+if [ "$SHOULD_SIGN" = true ]; then
+    echo -e "${YELLOW}To notarize (removes all Gatekeeper warnings):${NC}"
+    echo ""
+    echo "  1. Store your app-specific password in keychain (one-time):"
+    echo "     xcrun notarytool store-credentials \"moji-notary\" \\"
+    echo "       --apple-id YOUR_APPLE_ID \\"
+    echo "       --team-id $TEAM_ID \\"
+    echo "       --password YOUR_APP_SPECIFIC_PASSWORD"
+    echo ""
+    echo "  2. Notarize the DMG:"
+    echo "     xcrun notarytool submit \"$DMG_PATH\" --keychain-profile \"moji-notary\" --wait"
+    echo ""
+    echo "  3. Staple the ticket:"
+    echo "     xcrun stapler staple \"$DMG_PATH\""
+    echo ""
+fi
+
+echo "Upload to GitHub:"
+echo "  https://github.com/holy-schmitt-dev/moji/releases/new"
 echo ""

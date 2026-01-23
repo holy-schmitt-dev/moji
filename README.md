@@ -9,7 +9,7 @@ Select any text, press `⌥M`, and watch as contextually relevant emojis appear 
 </p>
 
 <p align="center">
-  <a href="https://github.com/holy-schmitt-dev/moji/releases/latest/download/Moji-1.0.1.dmg">
+  <a href="https://github.com/holy-schmitt-dev/moji/releases/latest/download/Moji-1.1.0.dmg">
     <img src="https://img.shields.io/badge/Download-Moji%20for%20Mac-7C3AED?style=for-the-badge&logo=apple&logoColor=white" alt="Download Moji">
   </a>
 </p>
@@ -40,9 +40,7 @@ Select any text, press `⌥M`, and watch as contextually relevant emojis appear 
 
 1. Download the latest `.dmg` from [Releases](https://github.com/holy-schmitt-dev/moji/releases)
 2. Open the `.dmg` and drag Moji to your Applications folder
-3. **First launch:** macOS will block the app. Go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway**
-   > This is normal for open-source apps not distributed through the App Store.
-4. Grant Accessibility permissions when prompted (required for the `⌥M` hotkey)
+3. Launch Moji and grant Accessibility permissions when prompted (required for the `⌥M` hotkey)
 
 ### Homebrew (coming soon)
 
